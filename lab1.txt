@@ -1,0 +1,57 @@
+CREATE TABLE Regions (
+    region_id int NOT NULL PRIMARY KEY,
+    region_name varchar(100)
+);
+
+Create Table Countries (
+    country_id int NOT NULL PRIMARY KEY,
+    coutry_name varchar(100),
+    FOREIGN KEY (region_id) REFERENCES Regions(region_id)
+);
+
+Create Table Locations (
+    location_id int NOT NULL PRIMARY KEY,
+    street_adress varchar(100),
+    postal_code varchar(7),
+    city varchar(100),
+    state_province varchar(100),
+    FOREIGN KEY (country_id) REFERENCES Countries(country_id)
+);
+
+Create Table Jobs (
+    job_id int NOT NULL PRIMARY KEY,
+    job_title varchar(100),
+    min_salary int,
+    max_salary int
+);
+
+Create Table Employees(
+    employee_id int NOT NULL PRIMARY KEY,
+    first_name varchar(100),
+    last_name varchar(100),
+    email varchar(100),
+    phone_number varchar(100),
+    hire_date DATE,
+    FOREIGN KEY (job_id) REFERENCES Jobs(job_id),
+    salary int,
+    commission_pct float,
+    FOREIGN KEY (manager_id) REFERENCES Employees(employee_id),
+    FOREIGN KEY (department_id) REFERENCES Departments(department_id)    
+);
+
+
+Create Table Departments (
+    department_id NOT NULL PRIMARY KEY,
+    department_name varchar(100),
+    FOREIGN KEY (manager_id) REFERENCES Employees(employee_id),
+    FOREIGN KEY (location_id) REFERENCES Locations(location_Id)
+);
+
+Create Table Job_history (
+    FOREIGN KEY (employee_id) REFERENCES Employees(employee_id),
+    start_date Date,
+    end_date Date,
+    FOREIGN KEY (job_id) REFERENCES Jobs(job_id),
+    FOREIGN KEY(department_id) REFERENCES Departments(department_id),
+    primary key (employee_id, start_date)
+)
