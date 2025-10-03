@@ -44,3 +44,56 @@ Create Table Job_history (
     start_date Date,
     end_date Date
 )
+
+ALTER TABLE LOCATIONS ADD FOREIGN KEY(country_id)
+REFERENCES COUNTRIES(country_id);
+
+ALTER TABLE DEPARTMENTS
+ADD manager_id int;
+
+ALTER TABLE DEPARTMENTS
+ADD location_id int;
+
+ALTER TABLE DEPARTMENTS ADD FOREIGN KEY(manager_id)
+REFERENCES EMPLOYEES(employee_id);
+
+ALTER TABLE DEPARTMENTS ADD FOREIGN KEY(location_id)
+REFERENCES LOCATIONS(location_id);
+
+alter table EMPLOYEES
+add department_id int;
+
+alter table EMPLOYEES
+add job_id int;
+
+alter table EMPLOYEES
+add manager_id int;
+
+ALTER TABLE EMPLOYEES ADD FOREIGN KEY(job_id)
+REFERENCES JOBS(job_id);
+
+ALTER TABLE EMPLOYEES ADD FOREIGN KEY(manager_id)
+REFERENCES EMPLOYEES(employee_id);
+
+ALTER TABLE EMPLOYEES ADD FOREIGN KEY(department_id)
+REFERENCES DEPARTMENTS(department_id)
+
+ALTER TABLE JOB_HISTORY 
+ADD employee_id int
+
+ALTER TABLE JOB_HISTORY 
+ADD job_id int
+
+ALTER TABLE JOB_HISTORY 
+ADD department_id int;
+
+ALTER TABLE JOB_HISTORY ADD FOREIGN KEY(employee_id)
+REFERENCES EMPLOYEES(employee_id);
+
+ALTER TABLE JOB_HISTORY ADD FOREIGN KEY(job_id)
+REFERENCES JOBS(job_id);
+
+ALTER TABLE JOB_HISTORY ADD FOREIGN KEY(department_id)
+REFERENCES DEPARTMENTS(department_id);
+
+ALTER TABLE JOB_HISTORY ADD PRIMARY KEY(employee_id, start_date);
