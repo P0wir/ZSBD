@@ -97,3 +97,99 @@ ALTER TABLE JOB_HISTORY ADD FOREIGN KEY(department_id)
 REFERENCES DEPARTMENTS(department_id);
 
 ALTER TABLE JOB_HISTORY ADD PRIMARY KEY(employee_id, start_date);
+
+ALTER TABLE Jobs
+ADD CONSTRAINT chk_salary
+CHECK (max_salary - min_salary >= 2000);
+
+--Zadanie 2
+INSERT INTO JOBS (job_id, job_title, min_salary, max_salary)
+VALUES (1, 'Programista', 5000, 12000);
+
+INSERT INTO JOBS (job_id, job_title, min_salary, max_salary)
+VALUES (2, 'Analityk', 4000, 7500);
+
+INSERT INTO JOBS (job_id, job_title, min_salary, max_salary)
+VALUES (3, 'Grafik', 4000, 10000);
+
+INSERT INTO JOBS (job_id, job_title, min_salary, max_salary)
+VALUES (4, 'Kierownik', 8000, 15000);
+
+--Zadanie 3
+
+INSERT INTO REGIONS (REGION_ID, REGION_NAME)
+VALUES (1, 'EUROPE');
+
+INSERT INTO COUNTRIES (COUNTRY_ID, COUTRY_NAME, REGION_ID)
+VALUES (1, 'Poland', 1);
+
+INSERT INTO LOCATIONS (LOCATION_ID, STREET_ADRESS, POSTAL_CODE, CITY, STATE_PROVINCE, COUNTRY_ID)
+VALUES (1, 'Sloneczna 54', '06-400', 'Olsztyn', 'Warminsko-Mazurskie', 1);
+
+INSERT INTO EMPLOYEES (
+    employee_id, first_name, last_name, email, phone_number, hire_date,
+    job_id, salary, commission_pct, manager_id, department_id
+) VALUES (
+    20, 'Arek', 'Nowak', 'arek.nowak@gmail.com', '+48123456786', DATE '2025-01-12',
+    4, 14000, 0.2, NULL, NULL
+);
+
+INSERT INTO DEPARTMENTS (DEPARTMENT_ID, DEPARTMENT_NAME, LOCATION_ID, MANAGER_ID)
+VALUES (1, 'IT', 1, 20);
+
+INSERT INTO EMPLOYEES (
+    employee_id, first_name, last_name, email, phone_number, hire_date,
+    job_id, salary, commission_pct, manager_id, department_id
+) VALUES (
+    1, 'JArek', 'Nowak', 'arek.nowak@gmail.com', '+48123456786', DATE '2025-01-12',
+    1, 7000, 0.2, 20, 1
+);
+
+INSERT INTO EMPLOYEES (
+    employee_id, first_name, last_name, email, phone_number, hire_date,
+    job_id, salary, commission_pct, manager_id, department_id
+) VALUES (
+    2, 'Marek', 'Kowalski', 'marek.kowalski@gmail.com', '+48123456787', DATE '2025-02-01',
+    2, 6500, 0.15, 20, 1)
+    ;
+
+INSERT INTO EMPLOYEES (
+    employee_id, first_name, last_name, email, phone_number, hire_date,
+    job_id, salary, commission_pct, manager_id, department_id
+) VALUES (3, 'Tomasz', 'Wiśniewski', 'tomasz.wisniewski@gmail.com', '+48123456788', DATE '2025-03-15',
+    3, 7200, 0.1, 20, 1);
+
+INSERT INTO EMPLOYEES (
+    employee_id, first_name, last_name, email, phone_number, hire_date,
+    job_id, salary, commission_pct, manager_id, department_id
+) VALUES (4, 'Paweł', 'Zieliński', 'pawel.zielinski@gmail.com', '+48123456789', DATE '2025-04-10',
+    4, 6800, 0.25, 20, 1);
+
+Zadanie 4----
+
+UPDATE EMPLOYEES
+SET manager_id = 1
+WHERE employee_id IN (2, 3);
+
+Zadanie 5---
+
+UPDATE JOBS
+SET MIN_SALARY = MIN_SALARY + 500,
+    MAX_SALARY = MAX_SALARY + 500
+WHERE LOWER(JOB_TITLE) LIKE '%b%'
+   OR LOWER(JOB_TITLE) LIKE '%s%';
+
+
+Zadanie 6---
+
+DELETE FROM JOBS
+WHERE MAX_SALARY > 9000;
+
+
+Zadanie 7----
+DROP TABLE JOBS;
+
+
+
+
+
