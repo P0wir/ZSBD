@@ -41,8 +41,9 @@ ALTER TABLE JOB_HISTORY ADD CONSTRAINT job_history_fk_job_id FOREIGN KEY (JOB_ID
 
 1.
 
+2.
 
-2..
+3.
 SELECT 
     first_name || ' ' || last_name AS imie_nazwisko,
     salary,
@@ -52,9 +53,6 @@ WHERE SUBSTR(last_name, 3, 1) = 'e'
   AND LOWER(first_name) LIKE LOWER('%an%')
 ORDER BY 1 DESC, 2 ASC;
 
-3.
-
-4.
 SELECT 
     first_name || ' ' || last_name AS imie_nazwisko,
     ROUND(MONTHS_BETWEEN(SYSDATE, hire_date)) AS liczba_miesiecy,
