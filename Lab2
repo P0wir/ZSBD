@@ -1,0 +1,39 @@
+II
+
+
+
+
+
+CREATE TABLE regions AS SELECT * FROM hr.regions;
+CREATE TABLE countries AS SELECT * FROM hr.countries;
+CREATE TABLE locations AS SELECT * FROM hr.locations;
+CREATE TABLE departments AS SELECT * FROM hr.departments;
+CREATE TABLE jobs AS SELECT * FROM hr.jobs;
+CREATE TABLE employees AS SELECT * FROM hr.employees;
+CREATE TABLE job_history AS SELECT * FROM hr.job_history;
+CREATE TABLE job_grades AS SELECT * FROM hr.job_grades;
+CREATE TABLE SALES AS SELECT * FROM hr.sales;
+CREATE TABLE PRODUCTS AS SELECT * FROM hr.products;
+
+ALTER TABLE COUNTRIES ADD CONSTRAINT regions_pk PRIMARY KEY (COUNTRY_ID);
+ALTER TABLE DEPARTMENTS ADD CONSTRAINT department_pk PRIMARY KEY (DEPARTMENT_ID);
+ALTER TABLE EMPLOYEES ADD CONSTRAINT employee_pk PRIMARY KEY (EMPLOYEE_ID);
+ALTER TABLE JOB_GRADES ADD CONSTRAINT job_grades_pk PRIMARY KEY (GRADE);
+ALTER TABLE JOB_HISTORY ADD CONSTRAINT job_history_pk PRIMARY KEY (EMPLOYEE_ID, START_DATE);
+ALTER TABLE JOBS ADD CONSTRAINT jobs_pk PRIMARY KEY (JOB_ID);
+ALTER TABLE LOCATIONS ADD CONSTRAINT locations_pk PRIMARY KEY (LOCATION_ID);
+ALTER TABLE REGIONS ADD CONSTRAINT regions_pkk PRIMARY KEY (REGION_ID);
+ALTER TABLE SALES ADD CONSTRAINT sales_pk PRIMARY KEY (SALE_ID);
+ALTER TABLE PRODUCTS ADD CONSTRAINT product_pk PRIMARY KEY (PRODUCT_ID);
+
+ALTER TABLE departments ADD CONSTRAINT departments_fk_location FOREIGN KEY (location_id) REFERENCES locations(location_id);
+ALTER TABLE departments ADD CONSTRAINT departments_fk_manager FOREIGN KEY (manager_id) REFERENCES employees(employee_id);
+ALTER TABLE employees ADD CONSTRAINT employees_fk_department FOREIGN KEY (department_id) REFERENCES departments(department_id);
+ALTER TABLE employees ADD CONSTRAINT employees_fk_job FOREIGN KEY (job_id) REFERENCES jobs(job_id);
+ALTER TABLE employees ADD CONSTRAINT employees_fk_manager FOREIGN KEY (manager_id) REFERENCES employees(employee_id);
+ALTER TABLE locations ADD CONSTRAINT locations_fk_country FOREIGN KEY (country_id) REFERENCES countries(country_id);
+ALTER TABLE countries ADD CONSTRAINT countries_fk_region FOREIGN KEY (region_id) REFERENCES regions(region_id);
+ALTER TABLE SALES ADD CONSTRAINT sales_fk_employees FOREIGN KEY (employee_id) REFERENCES employees(employee_id);
+ALTER TABLE JOB_HISTORY ADD CONSTRAINT job_history_fk_department_id FOREIGN KEY (department_id) REFERENCES DEPARTMENTS(department_id);
+ALTER TABLE JOB_HISTORY ADD CONSTRAINT job_history_fk_employee_id FOREIGN KEY (employee_id) REFERENCES EMPLOYEES(employee_id);
+ALTER TABLE JOB_HISTORY ADD CONSTRAINT job_history_fk_job_id FOREIGN KEY (JOB_ID) REFERENCES JOBS(JOB_ID);
