@@ -1,0 +1,120 @@
+1.
+
+CREATE VIEW v_wysokie_pensje AS
+Select
+    e.FIRST_NAME, e.LAST_NAME, e.SALARY
+FROM
+employees e WHERE
+e.SALARY > 6000;
+
+2.
+CREATE OR REPLACE VIEW v_wysokie_pensje AS
+Select
+    e.FIRST_NAME, e.LAST_NAME, e.SALARY
+FROM
+employees e WHERE
+e.SALARY > 12000;
+
+3.
+DROP VIEW v_wysokie_pensje
+
+4.
+CREATE OR REPLACE VIEW v_employee AS
+SELECT
+    e.EMPLOYEE_ID, e.LAST_NAME, e.FIRST_NAME, d.DEPARTMENT_NAME
+FROM
+    EMPLOYEES e
+INNER JOIN DEPARTMENTS d ON e.DEPARTMENT_ID = d.DEPARTMENT_ID
+WHERE d.DEPARTMENT_NAME = 'Finance';
+
+5.
+CREATE OR REPLACE VIEW v_employee_extended AS
+SELECT
+    e.EMPLOYEE_ID, e.LAST_NAME, e.FIRST_NAME, e.SALARY, e.JOB_ID, e.EMAIL , e.HIRE_DATE 
+FROM
+    EMPLOYEES e
+WHERE
+    e.SALARY BETWEEN 5000 AND 12000;
+
+
+6. 
+
+INSERT INTO v_employee_extended (employee_id, last_name, first_name, salary, job_id, email, hire_date)
+VALUES (2000, 'Nowak', 'Janusz', 7000, 'AD_VP', 'janusz@gmail.com', '24/10/25')
+
+moge dodac kolejny rekord
+
+UPDATE v_employee_extended
+SET last_name = 'Jaroslaw'
+WHERE employee_id = 2000;
+
+moge zedytowac ten rekord
+
+DELETE FROM v_employee_extended
+WHERE employee_id = 2000;
+
+moge usunac ten rekord
+
+7.
+CREATE OR REPLACE VIEW v_hr AS
+SELECT
+    d.DEPARTMENT_ID, d.DEPARTMENT_NAME, 
+    (SELECT COUNT(*) 
+     FROM EMPLOYEES e 
+     WHERE e.DEPARTMENT_ID = d.DEPARTMENT_ID) AS EMPLOYEE_COUNT,
+     (SELECT AVG(e.SALARY)
+     FROM EMPLOYEES e
+     WHERE e.DEPARTMENT_ID = d.DEPARTMENT_ID) as AVG_SALARY,
+     (SELECT MAX(e.SALARY)
+     FROM EMPLOYEES e
+     WHERE e.DEPARTMENT_ID = d.DEPARTMENT_ID) as MAX_SALARY     
+FROM
+    EMPLOYEES e
+INNER JOIN DEPARTMENTS d ON e.DEPARTMENT_ID = d.DEPARTMENT_ID
+GROUP BY
+    d.DEPARTMENT_ID, d.DEPARTMENT_NAME
+HAVING
+    COUNT(e.EMPLOYEE_ID) > 3;
+
+8.
+CREATE OR REPLACE VIEW v_employee_extended AS
+SELECT
+    e.EMPLOYEE_ID, e.LAST_NAME, e.FIRST_NAME, e.SALARY, e.JOB_ID, e.EMAIL , e.HIRE_DATE 
+FROM
+    EMPLOYEES e
+WHERE
+    e.SALARY BETWEEN 5000 AND 12000
+WITH CHECK OPTION;
+
+INSERT INTO v_employee_extended (employee_id, last_name, first_name, salary, job_id, email, hire_date)
+VALUES (2000, 'Nowak', 'Janusz', 7000, 'AD_VP', 'janusz@gmail.com', '24/10/25')
+
+bez problemu moglem dodac pracownika z zarobkami 7000
+
+INSERT INTO v_employee_extended (employee_id, last_name, first_name, salary, job_id, email, hire_date)
+VALUES (2001, 'Nowak', 'Andrzej', 15000, 'AD_VP', 'janusz@gmail.com', '24/10/25')
+
+nie moge dodac pracownika z zarobkami 15000
+
+9.
+CREATE MATERIALIZED VIEW  mv_managers AS
+SELECT
+e.*, d.DEPARTMENT_NAME
+FROM
+    EMPLOYEES e
+INNER JOIN DEPARTMENTS d ON e.DEPARTMENT_ID = d.DEPARTMENT_ID
+WHERE d.MANAGER_ID = e.EMPLOYEE_ID
+
+10.
+CREATE VIEW  v_najlepiej_oplacani AS
+SELECT
+e.*
+FROM
+    EMPLOYEES e
+ORDER by e.SALARY DESC
+FETCH FIRST 10 ROWS ONLY;
+
+
+
+
+
