@@ -1,0 +1,6 @@
+1. 
+Select employee_id, last_name, salary,
+Rank() OVER (Order by salary DESC) AS ranking
+FROM employees;
+
+2.
