@@ -1,0 +1,191 @@
+1.
+DECLARE
+    numer_max NUMBER;
+    nowy_numer NUMBER;
+    nowa_nazwa DEPARTMENTS.department_name%TYPE := 'EDUCATION';
+BEGIN
+    SELECT MAX(department_id) INTO numer_max FROM departments;
+
+    nowy_numer := numer_max + 10;
+
+    INSERT INTO departments (department_id, department_name)
+    VALUES (nowy_numer, nowa_nazwa);
+
+    DBMS_OUTPUT.PUT_LINE('Dodano departament nr: ' || nowy_numer);
+END;
+/
+2.
+DECLARE
+    numer_max NUMBER;
+    nowy_numer NUMBER;
+    nowa_nazwa DEPARTMENTS.department_name%TYPE := 'EDUCATION';
+BEGIN
+    SELECT MAX(department_id) INTO numer_max FROM departments;
+
+    nowy_numer := numer_max + 10;
+
+    INSERT INTO departments (department_id, department_name, location_id)
+    VALUES (nowy_numer, nowa_nazwa, 3000);
+
+    DBMS_OUTPUT.PUT_LINE('Dodano departament nr: ' || nowy_numer || ' z location_id=3000');
+END;
+/
+
+3.
+CREATE TABLE nowa(liczba VARCHAR2(255));
+
+BEGIN
+    FOR i in 1..10 LOOP
+        IF i NOT IN (4, 6) THEN
+            INSERT INTO nowa(liczba) VALUES(TO_CHAR(i));
+        END IF;
+    END LOOP;
+END;
+/
+
+4.
+DECLARE
+    kraj countries%ROWTYPE;
+    
+BEGIN
+    SELECT * INTO kraj FROM countries WHERE country_id = 'CA';
+    DBMS_OUTPUT.PUT_LINE('Nazwa: ' || kraj.country_name || ' Id: ' || kraj.region_id);
+END;
+/
+5.
+DECLARE
+    job_rec jobs%ROWTYPE;
+    licznik NUMBER := 0;
+BEGIN
+    FOR job_rec IN (
+        SELECT * FROM jobs
+        WHERE LOWER(job_title) LIKE '%manager%'
+    ) LOOP
+        UPDATE jobs
+        SET min_salary = min_salary * 1.05
+        WHERE job_id = job_rec.job_id;
+
+        licznik := licznik + 1;
+    END LOOP;
+
+    DBMS_OUTPUT.PUT_LINE('Zaktualizowano rekordów: ' || licznik);
+
+    ROLLBACK;  -- cofnięcie zmian
+END;
+/
+
+6.
+DECLARE
+    job_rec jobs%ROWTYPE;
+BEGIN
+    SELECT * INTO job_rec
+    FROM jobs
+    ORDER BY max_salary DESC
+    FETCH FIRST 1 ROW ONLY;
+
+    DBMS_OUTPUT.PUT_LINE('Najwyższa max pensja:');
+    DBMS_OUTPUT.PUT_LINE(job_rec.job_title || ' - ' || job_rec.max_salary);
+END;
+/
+
+7.
+DECLARE
+    CURSOR c_countries(p_region_id NUMBER) IS
+        SELECT country_name, (SELECT COUNT(*) FROM employees e 
+        JOIN departments d ON e.department_id = d.department_id JOIN locations l ON d.location_id = l.location_id
+        WHERE l.country_id = c.country_id) AS l_pracownikow
+        FROM countries c WHERE region_id = p_region_id;
+        
+    v_country c_countries%ROWTYPE;
+
+BEGIN
+    OPEN c_countries(1);
+    LOOP
+        FETCH c_countries INTO v_country;
+        EXIT WHEN c_countries%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE('Kraj: ' || v_country.country_name || ' liczba pracowników: ' || v_country.l_pracownikow);
+    END LOOP;
+    CLOSE c_countries;
+END;
+/
+
+8.
+DECLARE
+    CURSOR emp_cur IS
+        SELECT last_name, salary
+        FROM employees
+        WHERE department_id = 50;
+
+    ln employees.last_name%TYPE;
+    sal employees.salary%TYPE;
+BEGIN
+    OPEN emp_cur;
+    LOOP
+        FETCH emp_cur INTO ln, sal;
+        EXIT WHEN emp_cur%NOTFOUND;
+
+        IF sal > 3100 THEN
+            DBMS_OUTPUT.PUT_LINE(ln || ' - nie dawać podwyżki');
+        ELSE
+            DBMS_OUTPUT.PUT_LINE(ln || ' - dać podwyżkę');
+        END IF;
+    END LOOP;
+    CLOSE emp_cur;
+END;
+/
+
+9.
+DECLARE
+    CURSOR prac_cur (p_min NUMBER, p_max NUMBER, p_fragment VARCHAR2) IS
+        SELECT first_name, last_name, salary
+        FROM employees
+        WHERE salary BETWEEN p_min AND p_max
+          AND LOWER(first_name) LIKE '%' || LOWER(p_fragment) || '%';
+
+    fn employees.first_name%TYPE;
+    ln employees.last_name%TYPE;
+    sal employees.salary%TYPE;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('--- Przypadek A ---');
+    OPEN prac_cur(1000, 5000, 'a');
+    LOOP
+        FETCH prac_cur INTO fn, ln, sal;
+        EXIT WHEN prac_cur%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE(fn || ' ' || ln || ' - ' || sal);
+    END LOOP;
+    CLOSE prac_cur;
+
+    DBMS_OUTPUT.PUT_LINE('--- Przypadek B ---');
+    OPEN prac_cur(5000, 20000, 'u');
+    LOOP
+        FETCH prac_cur INTO fn, ln, sal;
+        EXIT WHEN prac_cur%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE(fn || ' ' || ln || ' - ' || sal);
+    END LOOP;
+    CLOSE prac_cur;
+END;
+/
+
+10.
+DECLARE
+    mgr_id NUMBER;
+    liczba NUMBER;
+    max_sal NUMBER;
+    min_sal NUMBER;
+BEGIN
+    FOR mgr IN (SELECT DISTINCT manager_id FROM employees WHERE manager_id IS NOT NULL)
+    LOOP
+        mgr_id := mgr.manager_id;
+
+        SELECT COUNT(*), MAX(salary), MIN(salary)
+        INTO liczba, max_sal, min_sal
+        FROM employees
+        WHERE manager_id = mgr_id;
+
+        INSERT INTO statystyki_menedzerow
+        VALUES (mgr_id, liczba, max_sal - min_sal);
+    END LOOP;
+
+    DBMS_OUTPUT.PUT_LINE('Statystyki wygenerowane.');
+END;
+/
