@@ -1,0 +1,216 @@
+1. CREATE OR REPLACE PROCEDURE add_job (
+    p_job_id     IN JOBS.job_id%TYPE,
+    p_job_title  IN JOBS.job_title%TYPE
+) AS
+BEGIN
+    INSERT INTO jobs (job_id, job_title)
+    VALUES (p_job_id, p_job_title);
+
+    DBMS_OUTPUT.PUT_LINE('Dodano job_id=' || p_job_id);
+
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Job_id już istnieje!');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Inny błąd: ' || SQLERRM);
+END;
+/
+
+2. CREATE OR REPLACE PROCEDURE update_job_title (
+    p_job_id    IN JOBS.job_id%TYPE,
+    p_new_title IN JOBS.job_title%TYPE
+) AS
+    e_no_update EXCEPTION;
+BEGIN
+    UPDATE jobs
+    SET job_title = p_new_title
+    WHERE job_id = p_job_id;
+
+    IF SQL%ROWCOUNT = 0 THEN
+        RAISE e_no_update;
+    END IF;
+
+    DBMS_OUTPUT.PUT_LINE('Zaktualizowano job_id=' || p_job_id);
+
+EXCEPTION
+    WHEN e_no_update THEN
+        DBMS_OUTPUT.PUT_LINE('Brak rekordów do aktualizacji (job_id nie istnieje).');
+END;
+/
+
+3.
+CREATE OR REPLACE PROCEDURE delete_job (
+    p_job_id IN JOBS.job_id%TYPE
+) AS
+    e_no_delete EXCEPTION;
+BEGIN
+    DELETE FROM jobs
+    WHERE job_id = p_job_id;
+
+    IF SQL%ROWCOUNT = 0 THEN
+        RAISE e_no_delete;
+    END IF;
+
+    DBMS_OUTPUT.PUT_LINE('Usunięto job_id=' || p_job_id);
+
+EXCEPTION
+    WHEN e_no_delete THEN
+        DBMS_OUTPUT.PUT_LINE('Nie ma takiego job_id – nic nie usunięto.');
+END;
+/
+
+4.
+CREATE OR REPLACE PROCEDURE get_employee_info (
+    p_emp_id     IN  employees.employee_id%TYPE,
+    p_last_name  OUT employees.last_name%TYPE,
+    p_salary     OUT employees.salary%TYPE
+) AS
+BEGIN
+    SELECT last_name, salary
+    INTO p_last_name, p_salary
+    FROM employees
+    WHERE employee_id = p_emp_id;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Pracownik nie istnieje.');
+END;
+/
+
+5.
+CREATE OR REPLACE PROCEDURE add_employee (
+    p_first_name IN employees.first_name%TYPE DEFAULT NULL,
+    p_last_name  IN employees.last_name%TYPE,
+    p_salary     IN employees.salary%TYPE,
+    p_job_id     IN employees.job_id%TYPE DEFAULT NULL,
+    p_manager_id IN employees.manager_id%TYPE DEFAULT NULL,
+    p_dept_id    IN employees.department_id%TYPE DEFAULT NULL
+) AS
+    e_salary_high EXCEPTION;
+BEGIN
+    IF p_salary > 20000 THEN
+        RAISE e_salary_high;
+    END IF;
+
+    INSERT INTO employees (
+        employee_id, first_name, last_name, salary,
+        job_id, manager_id, department_id
+    ) VALUES (
+        employees_seq.NEXTVAL,
+        p_first_name, p_last_name, p_salary,
+        p_job_id, p_manager_id, p_dept_id
+    );
+
+    DBMS_OUTPUT.PUT_LINE('Dodano pracownika: ' || p_last_name);
+
+EXCEPTION
+    WHEN e_salary_high THEN
+        DBMS_OUTPUT.PUT_LINE('Wynagrodzenie przekracza 20000!');
+END;
+/
+
+6.
+
+CREATE OR REPLACE PROCEDURE avg_salary_by_manager (
+    p_manager_id IN employees.manager_id%TYPE,
+    p_avg_salary OUT NUMBER
+) AS
+BEGIN
+    SELECT AVG(salary)
+    INTO p_avg_salary
+    FROM employees
+    WHERE manager_id = p_manager_id;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        p_avg_salary := NULL;
+END;
+
+7.
+
+CREATE OR REPLACE PROCEDURE raise_in_department (
+    p_dept_id IN departments.department_id%TYPE,
+    p_percent IN NUMBER
+) AS
+BEGIN
+    UPDATE employees e
+    SET salary = salary + salary * p_percent / 100
+    WHERE department_id = p_dept_id
+      AND salary + salary * p_percent / 100 BETWEEN
+            (SELECT min_salary FROM jobs WHERE job_id = e.job_id)
+        AND (SELECT max_salary FROM jobs WHERE job_id = e.job_id);
+
+    DBMS_OUTPUT.PUT_LINE('Zaktualizowano: ' || SQL%ROWCOUNT);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE = -2291 THEN
+            DBMS_OUTPUT.PUT_LINE('Nie istnieje department_id=' || p_dept_id);
+        ELSE
+            DBMS_OUTPUT.PUT_LINE('Błąd: ' || SQLERRM);
+        END IF;
+END;
+/
+
+
+
+8.
+-- zadanie 8
+
+CREATE OR REPLACE PROCEDURE move_employee(
+    p_emp_id      IN employees.employee_id%TYPE,
+    p_new_dept_id IN departments.department_id%TYPE
+)
+IS
+    v_temp NUMBER;
+
+    e_no_employee EXCEPTION;
+    e_no_department EXCEPTION;
+BEGIN
+    -- sprawdzenie pracownika
+    SELECT COUNT(*) INTO v_temp FROM employees WHERE employee_id = p_emp_id;
+    IF v_temp = 0 THEN
+        RAISE e_no_employee;
+    END IF;
+
+    -- sprawdzenie departamentu
+    SELECT COUNT(*) INTO v_temp FROM departments WHERE department_id = p_new_dept_id;
+    IF v_temp = 0 THEN
+        RAISE e_no_department;
+    END IF;
+
+    UPDATE employees
+    SET department_id = p_new_dept_id
+    WHERE employee_id = p_emp_id;
+
+    DBMS_OUTPUT.PUT_LINE('Przeniesiono pracownika ' || p_emp_id);
+
+EXCEPTION
+    WHEN e_no_employee THEN
+        DBMS_OUTPUT.PUT_LINE('Pracownik nie istnieje!');
+    WHEN e_no_department THEN
+        DBMS_OUTPUT.PUT_LINE('Nowy departament nie istnieje!');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Błąd podczas przenoszenia: ' || SQLERRM);
+END;
+
+
+9.
+CREATE OR REPLACE PROCEDURE delete_department (
+    p_dept_id IN departments.department_id%TYPE
+) AS
+BEGIN
+    DELETE FROM departments
+    WHERE department_id = p_dept_id;
+
+    IF SQL%ROWCOUNT = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Taki departament nie istnieje.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Usunięto departament ' || p_dept_id);
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Nie można usunąć departamentu. Powód: ' || SQLERRM);
+END;
+/
