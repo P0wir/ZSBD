@@ -1,0 +1,128 @@
+1.
+CREATE OR REPLACE FUNCTION get_job_name(p_job_id INT)
+RETURN VARCHAR2
+IS
+    v_job_title JOBS.job_title%TYPE;
+BEGIN
+    SELECT job_title
+    INTO v_job_title
+    FROM JOBS
+    WHERE job_id = p_job_id;
+
+    RETURN v_job_title;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Praca o podanym ID nie istnieje');
+END;
+/
+2.
+CREATE OR REPLACE FUNCTION yearly_salary(p_employee_id INT)
+RETURN NUMBER
+IS
+    v_salary EMPLOYEES.salary%TYPE;
+    v_comm EMPLOYEES.commission_pct%TYPE;
+BEGIN
+    SELECT salary, NVL(commission_pct, 0)
+    INTO v_salary, v_comm
+    FROM EMPLOYEES
+    WHERE employee_id = p_employee_id;
+
+    RETURN (v_salary * 12) + (v_salary * v_comm);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Pracownik nie istnieje');
+END;
+/
+3.
+CREATE OR REPLACE FUNCTION format_phone(p_phone VARCHAR2)
+RETURN VARCHAR2
+IS
+BEGIN
+    RETURN '(' || SUBSTR(p_phone, 1, 3) || ')' || SUBSTR(p_phone, 4);
+END;
+/
+4.
+CREATE OR REPLACE FUNCTION format_string(p_text VARCHAR2)
+RETURN VARCHAR2
+IS
+BEGIN
+    RETURN 
+        UPPER(SUBSTR(p_text, 1, 1)) ||
+        LOWER(SUBSTR(p_text, 2, LENGTH(p_text) - 2)) ||
+        UPPER(SUBSTR(p_text, -1));
+END;
+/
+5.
+CREATE OR REPLACE FUNCTION pesel_to_date(p_pesel VARCHAR2)
+RETURN DATE
+IS
+    v_year  NUMBER;
+    v_month NUMBER;
+    v_day   NUMBER;
+BEGIN
+    v_year  := SUBSTR(p_pesel, 1, 2);
+    v_month := SUBSTR(p_pesel, 3, 2);
+    v_day   := SUBSTR(p_pesel, 5, 2);
+
+    IF v_month > 20 THEN
+        v_month := v_month - 20;
+        v_year := 2000 + v_year;
+    ELSE
+        v_year := 1900 + v_year;
+    END IF;
+
+    RETURN TO_DATE(v_year || '-' || LPAD(v_month,2,'0') || '-' || LPAD(v_day,2,'0'),
+                   'YYYY-MM-DD');
+END;
+/
+6.
+CREATE OR REPLACE FUNCTION country_stats(p_country_name VARCHAR2)
+RETURN VARCHAR2
+IS
+    v_emp_count NUMBER;
+    v_dep_count NUMBER;
+BEGIN
+    SELECT COUNT(DISTINCT e.employee_id),
+           COUNT(DISTINCT d.department_id)
+    INTO v_emp_count, v_dep_count
+    FROM COUNTRIES c
+    JOIN LOCATIONS l ON c.country_id = l.country_id
+    JOIN DEPARTMENTS d ON l.location_id = d.location_id
+    LEFT JOIN EMPLOYEES e ON d.department_id = e.department_id
+    WHERE LOWER(c.coutry_name) = LOWER(p_country_name);
+
+    IF v_dep_count = 0 THEN
+        RAISE NO_DATA_FOUND;
+    END IF;
+
+    RETURN 'Pracownicy: ' || v_emp_count || 
+           ', Departamenty: ' || v_dep_count;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Kraj nie istnieje');
+END;
+/
+7.
+CREATE OR REPLACE FUNCTION access_id(p_employee_id INT)
+RETURN VARCHAR2
+IS
+    v_last EMPLOYEES.last_name%TYPE;
+    v_first EMPLOYEES.first_name%TYPE;
+    v_phone EMPLOYEES.phone_number%TYPE;
+BEGIN
+    SELECT last_name, first_name, phone_number
+    INTO v_last, v_first, v_phone
+    FROM EMPLOYEES
+    WHERE employee_id = p_employee_id;
+
+    RETURN 
+        UPPER(SUBSTR(v_last, 1, 3)) ||
+        SUBSTR(v_phone, -4) ||
+        UPPER(SUBSTR(v_first, 1, 1));
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20004, 'Pracownik nie istnieje');
+END;
+/
+7.
