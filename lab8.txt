@@ -1,0 +1,74 @@
+Zad1.
+CREATE TABLE archiwum_departamentow (
+    id              NUMBER PRIMARY KEY,
+    nazwa           VARCHAR2(100),
+    data_zamkniecia DATE,
+    ostatni_manager VARCHAR2(250)
+);
+
+CREATE OR REPLACE TRIGGER dep_archive
+AFTER DELETE ON departments
+FOR EACH ROW
+DECLARE
+    v_manager_name VARCHAR2(250);
+BEGIN
+    SELECT first_name || ' ' || last_name
+    INTO v_manager_name
+    FROM employees
+    WHERE employee_id = :OLD.manager_id;
+
+    INSERT INTO archiwum_departamentow (id, nazwa, data_zamkniecia, ostatni_manager)
+    VALUES (:OLD.department_id, :OLD.department_name, SYSDATE, v_manager_name);
+END;
+/
+Zad2.
+CREATE TABLE zlodziej (
+    id          NUMBER PRIMARY KEY,
+    usr         VARCHAR2(128),
+    czas_zmiany TIMESTAMP
+);
+
+CREATE SEQUENCE seq_zlodziej START WITH 1 INCREMENT BY 1;
+
+CREATE OR REPLACE TRIGGER trg_emp_salary_guard_biu
+BEFORE INSERT OR UPDATE OF salary ON employees
+FOR EACH ROW
+BEGIN
+    IF :NEW.salary < 2000 OR :NEW.salary > 26000 THEN
+        INSERT INTO zlodziej (id, usr, czas_zmiany)
+        VALUES (seq_zlodziej.NEXTVAL, USER, SYSTIMESTAMP);
+
+        RAISE_APPLICATION_ERROR(-20001, 'Salary poza widełkami 2000-26000');
+    END IF;
+END;
+/
+3.
+CREATE SEQUENCE seq_employees START WITH 1 INCREMENT BY 1;
+
+CREATE OR REPLACE TRIGGER trg_emp_autoinc_bi
+BEFORE INSERT ON employees
+FOR EACH ROW
+BEGIN
+    IF :NEW.employee_id IS NULL THEN
+        :NEW.employee_id := seq_employees.NEXTVAL;
+    END IF;
+END;
+/
+
+4.
+CREATE OR REPLACE TRIGGER trg_no_dml_job_grades
+BEFORE INSERT OR UPDATE OR DELETE ON job_grades
+BEGIN
+    RAISE_APPLICATION_ERROR(-20002, 'Operacje na JOD_GRADES sa zabronione');
+END;
+/
+
+5.
+CREATE OR REPLACE TRIGGER trg_jobs_keep_minmax_bu
+BEFORE UPDATE OF min_salary, max_salary ON jobs
+FOR EACH ROW
+BEGIN
+    :NEW.min_salary := :OLD.min_salary;
+    :NEW.max_salary := :OLD.max_salary;
+END;
+/
