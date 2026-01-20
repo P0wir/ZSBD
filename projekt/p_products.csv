@@ -1,0 +1,5 @@
+product_id,name,category_id,unit,vat_rate,active
+1,Jabłka,1,kg,5,Y
+2,Banany,1,kg,5,Y
+3,Marchew,2,kg,5,Y
+4,Ziemniaki,2,kg,5,Y

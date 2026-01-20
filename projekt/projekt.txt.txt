@@ -1,0 +1,347 @@
+-- PROJEKT ZSBD HURTOWANIA OWOCOW I WARZYW
+
+--utworzenie tabeli kategorie
+CREATE TABLE p_categories (
+  category_id NUMBER PRIMARY KEY,
+  name        VARCHAR2(50) UNIQUE NOT NULL
+);
+--utworzenie tabeli produkty (active odpowiada czy produkt jest aktywny(np owoce sezonowe))
+CREATE TABLE p_products (
+  product_id   NUMBER PRIMARY KEY,
+  name         VARCHAR2(100) NOT NULL,
+  category_id  NUMBER NOT NULL REFERENCES p_categories(category_id),
+  unit         VARCHAR2(10) NOT NULL,
+  vat_rate     NUMBER(5,2) DEFAULT 5 NOT NULL,
+  active       CHAR(1) DEFAULT 'Y' CHECK (active IN ('Y','N'))
+);
+--utworzenie tabeli dostawców (NIP opcjonalnie ale walidowany triggerem)
+CREATE TABLE p_suppliers (
+  supplier_id NUMBER PRIMARY KEY,
+  name        VARCHAR2(200) NOT NULL,
+  nip         VARCHAR2(10),
+  phone       VARCHAR2(30),
+  email       VARCHAR2(120),
+  active      CHAR(1) DEFAULT 'Y' CHECK (active IN ('Y','N'))
+);
+--utworzenie tabeli klientow (active odpowiada czy klient dalej u nas zamawia)
+CREATE TABLE p_customers (
+  customer_id NUMBER PRIMARY KEY,
+  name        VARCHAR2(200) NOT NULL,
+  nip         VARCHAR2(10),
+  phone       VARCHAR2(30),
+  email       VARCHAR2(120),
+  active      CHAR(1) DEFAULT 'Y' CHECK (active IN ('Y','N'))
+);
+--utworzenie tabeli dla magazynów
+CREATE TABLE p_warehouses (
+  warehouse_id NUMBER PRIMARY KEY,
+  name         VARCHAR2(100) NOT NULL,
+  city         VARCHAR2(100)
+);
+--utworzenie tabeli dla partii towarów
+CREATE TABLE p_product_batches (
+  batch_id      NUMBER PRIMARY KEY,
+  product_id    NUMBER NOT NULL REFERENCES p_products(product_id),
+  supplier_id   NUMBER NOT NULL REFERENCES p_suppliers(supplier_id),
+  warehouse_id  NUMBER NOT NULL REFERENCES p_warehouses(warehouse_id),
+  batch_code    VARCHAR2(60),
+  received_date DATE NOT NULL,
+  expire_date   DATE,
+  buy_price     NUMBER(12,2) NOT NULL CHECK (buy_price >= 0),
+  qty_received  NUMBER(12,3) NOT NULL CHECK (qty_received >= 0)
+);
+--utworzenie tabeli dla stanu magazynowego
+CREATE TABLE p_stock (
+  warehouse_id NUMBER NOT NULL REFERENCES p_warehouses(warehouse_id),
+  batch_id     NUMBER NOT NULL REFERENCES p_product_batches(batch_id),
+  qty_on_hand  NUMBER(12,3) NOT NULL CHECK (qty_on_hand >= 0),
+  CONSTRAINT pk_stock PRIMARY KEY (warehouse_id, batch_id)
+);
+--utworzenie tabeli dla zamowien wychodzacych z hurtowni
+CREATE TABLE p_purchase_orders (
+  po_id        NUMBER PRIMARY KEY,
+  supplier_id  NUMBER NOT NULL REFERENCES p_suppliers(supplier_id),
+  warehouse_id NUMBER NOT NULL REFERENCES p_warehouses(warehouse_id),
+  po_date      DATE DEFAULT SYSDATE NOT NULL,
+  status       VARCHAR2(20) DEFAULT 'NEW' NOT NULL
+);
+--utworzenie tabeli dla pozycji zakupów
+CREATE TABLE p_purchase_lines (
+  po_id       NUMBER NOT NULL REFERENCES p_purchase_orders(po_id),
+  line_no     NUMBER NOT NULL,
+  product_id  NUMBER NOT NULL REFERENCES p_products(product_id),
+  qty         NUMBER(12,3) NOT NULL CHECK (qty > 0),
+  unit_price  NUMBER(12,2) NOT NULL CHECK (unit_price >= 0),
+  CONSTRAINT pk_purchase_lines PRIMARY KEY (po_id, line_no)
+);
+--utworzenie tabeli dla zamowień sprzedaży
+CREATE TABLE p_sales_orders (
+  so_id        NUMBER PRIMARY KEY,
+  customer_id  NUMBER NOT NULL REFERENCES p_customers(customer_id),
+  warehouse_id NUMBER NOT NULL REFERENCES p_warehouses(warehouse_id),
+  so_date      DATE DEFAULT SYSDATE NOT NULL,
+  status       VARCHAR2(20) DEFAULT 'NEW' NOT NULL
+);
+--utowrzenie tabeli dla pozycji sprzedaży
+CREATE TABLE p_sales_lines (
+  so_id       NUMBER NOT NULL REFERENCES p_sales_orders(so_id),
+  line_no     NUMBER NOT NULL,
+  product_id  NUMBER NOT NULL REFERENCES p_products(product_id),
+  qty         NUMBER(12,3) NOT NULL CHECK (qty > 0),
+  unit_price  NUMBER(12,2) NOT NULL CHECK (unit_price >= 0),
+  CONSTRAINT pk_sales_lines PRIMARY KEY (so_id, line_no)
+);
+
+--utowrzenie tabeli dla logów
+CREATE TABLE audit_log (
+  id          NUMBER PRIMARY KEY,
+  log_time    TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+  usr         VARCHAR2(128) DEFAULT USER NOT NULL,
+  module      VARCHAR2(80),
+  action      VARCHAR2(80),
+  details     VARCHAR2(4000)
+);
+
+CREATE SEQUENCE seq_audit_log START WITH 1 INCREMENT BY 1;
+
+--utworzenie archiwum usunietych sprzedazy
+CREATE TABLE sales_orders_arch (
+  so_id        NUMBER,
+  customer_id  NUMBER,
+  warehouse_id NUMBER,
+  so_date      DATE,
+  status       VARCHAR2(20),
+  deleted_at   TIMESTAMP DEFAULT SYSTIMESTAMP,
+  deleted_by   VARCHAR2(128)
+);
+
+CREATE TABLE sales_lines_arch (
+  so_id       NUMBER,
+  line_no     NUMBER,
+  product_id  NUMBER,
+  qty         NUMBER(12,3),
+  unit_price  NUMBER(12,2),
+  deleted_at  TIMESTAMP DEFAULT SYSTIMESTAMP,
+  deleted_by  VARCHAR2(128)
+);
+
+-- trigger: przyjecie party + automatyczna aktualizacja stanu
+CREATE OR REPLACE TRIGGER trg_p_batches_to_stock_ai
+AFTER INSERT ON p_product_batches
+FOR EACH ROW
+BEGIN
+  MERGE INTO p_stock s
+  USING (SELECT :NEW.warehouse_id AS warehouse_id, :NEW.batch_id AS batch_id FROM dual) d
+  ON (s.warehouse_id = d.warehouse_id AND s.batch_id = d.batch_id)
+  WHEN MATCHED THEN
+    UPDATE SET s.qty_on_hand = s.qty_on_hand + :NEW.qty_received
+  WHEN NOT MATCHED THEN
+    INSERT (warehouse_id, batch_id, qty_on_hand)
+    VALUES (:NEW.warehouse_id, :NEW.batch_id, :NEW.qty_received);
+
+  INSERT INTO audit_log(id, module, action, details)
+  VALUES (seq_audit_log.NEXTVAL, 'P_PRODUCT_BATCHES', 'INSERT',
+          'batch_id='||:NEW.batch_id||' qty='||:NEW.qty_received);
+END;
+/
+--funkcja walidacji NIPu
+CREATE OR REPLACE FUNCTION fn_is_valid_nip(p_nip VARCHAR2) RETURN NUMBER IS
+  v VARCHAR2(10);
+  sumv NUMBER := 0;
+  w SYS.ODCINUMBERLIST := SYS.ODCINUMBERLIST(6,5,7,2,3,4,5,6,7);
+  ctrl NUMBER;
+BEGIN
+  v := REGEXP_REPLACE(NVL(p_nip,''), '[^0-9]', '');
+  IF LENGTH(v) <> 10 THEN RETURN 0; END IF;
+
+  FOR i IN 1..9 LOOP
+    sumv := sumv + TO_NUMBER(SUBSTR(v,i,1)) * w(i);
+  END LOOP;
+
+  ctrl := MOD(sumv, 11);
+  IF ctrl = 10 THEN RETURN 0; END IF;
+
+  IF ctrl = TO_NUMBER(SUBSTR(v,10,1)) THEN RETURN 1; ELSE RETURN 0; END IF;
+END;
+/
+--funkcja walidacji czy NIP jest poprawny
+CREATE OR REPLACE TRIGGER trg_p_suppliers_nip_biu
+BEFORE INSERT OR UPDATE OF nip ON p_suppliers
+FOR EACH ROW
+BEGIN
+  IF :NEW.nip IS NOT NULL AND fn_is_valid_nip(:NEW.nip) = 0 THEN
+    INSERT INTO audit_log(id, log_time, usr, module, action, details)
+    VALUES (seq_audit_log.NEXTVAL, SYSTIMESTAMP, USER, 'P_SUPPLIERS', 'INVALID_NIP', 'nip='||:NEW.nip);
+    RAISE_APPLICATION_ERROR(-21001, 'Niepoprawny NIP dostawcy');
+  END IF;
+END;
+/
+--funckja walidacji nipu klienta
+CREATE OR REPLACE TRIGGER trg_p_customers_nip_biu
+BEFORE INSERT OR UPDATE OF nip ON p_customers
+FOR EACH ROW
+BEGIN
+  IF :NEW.nip IS NOT NULL AND fn_is_valid_nip(:NEW.nip) = 0 THEN
+    INSERT INTO audit_log(id, log_time, usr, module, action, details)
+    VALUES (seq_audit_log.NEXTVAL, SYSTIMESTAMP, USER, 'P_CUSTOMERS', 'INVALID_NIP', 'nip='||:NEW.nip);
+    RAISE_APPLICATION_ERROR(-21002, 'Niepoprawny NIP klienta');
+  END IF;
+END;
+/
+--trigger archiwizacja usunietych sprzedazy
+CREATE OR REPLACE TRIGGER trg_p_sales_lines_arch_ad
+AFTER DELETE ON p_sales_lines
+FOR EACH ROW
+BEGIN
+  INSERT INTO sales_lines_arch(so_id, line_no, product_id, qty, unit_price, deleted_at, deleted_by)
+  VALUES (:OLD.so_id, :OLD.line_no, :OLD.product_id, :OLD.qty, :OLD.unit_price, SYSTIMESTAMP, USER);
+
+  INSERT INTO audit_log(id, log_time, usr, module, action, details)
+  VALUES (seq_audit_log.NEXTVAL, SYSTIMESTAMP, USER, 'P_SALES_LINES', 'DELETE',
+          'so_id='||:OLD.so_id||' line_no='||:OLD.line_no);
+END;
+/
+--CRUD dla produktu
+CREATE OR REPLACE PROCEDURE pr_add_product(
+  p_product_id  IN NUMBER,
+  p_name        IN VARCHAR2,
+  p_category_id IN NUMBER,
+  p_unit        IN VARCHAR2,
+  p_vat_rate    IN NUMBER DEFAULT 5,
+  p_active      IN CHAR   DEFAULT 'Y'
+) AS
+  v_cnt NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO v_cnt
+  FROM p_products
+  WHERE UPPER(name) = UPPER(p_name);
+
+  IF v_cnt > 0 THEN
+    INSERT INTO audit_log(id, log_time, usr, module, action, details)
+    VALUES (seq_audit_log.NEXTVAL, SYSTIMESTAMP, USER, 'PR_ADD_PRODUCT', 'ERROR', 'duplicate name='||p_name);
+    RAISE_APPLICATION_ERROR(-22001, 'Produkt o takiej nazwie już istnieje');
+  END IF;
+
+  INSERT INTO p_products(product_id, name, category_id, unit, vat_rate, active)
+  VALUES (p_product_id, p_name, p_category_id, p_unit, p_vat_rate, p_active);
+
+  INSERT INTO audit_log(id, log_time, usr, module, action, details)
+  VALUES (seq_audit_log.NEXTVAL, SYSTIMESTAMP, USER, 'PR_ADD_PRODUCT', 'INSERT', 'product_id='||p_product_id);
+END;
+/
+
+
+CREATE OR REPLACE PROCEDURE pr_update_product(
+  p_product_id  IN NUMBER,
+  p_name        IN VARCHAR2,
+  p_category_id IN NUMBER,
+  p_unit        IN VARCHAR2,
+  p_vat_rate    IN NUMBER,
+  p_active      IN CHAR
+) AS
+BEGIN
+  UPDATE p_products
+  SET name = p_name,
+      category_id = p_category_id,
+      unit = p_unit,
+      vat_rate = p_vat_rate,
+      active = p_active
+  WHERE product_id = p_product_id;
+
+  INSERT INTO audit_log(id, log_time, usr, module, action, details)
+  VALUES (seq_audit_log.NEXTVAL, SYSTIMESTAMP, USER, 'PR_UPDATE_PRODUCT', 'UPDATE', 'product_id='||p_product_id);
+END;
+/
+
+CREATE OR REPLACE PROCEDURE pr_delete_product(
+  p_product_id IN NUMBER
+) AS
+BEGIN
+  UPDATE p_products
+  SET active = 'N'
+  WHERE product_id = p_product_id;
+
+  INSERT INTO audit_log(id, log_time, usr, module, action, details)
+  VALUES (seq_audit_log.NEXTVAL, SYSTIMESTAMP, USER, 'PR_DELETE_PRODUCT', 'SOFT_DELETE', 'product_id='||p_product_id);
+END;
+/
+--tabela podsumowań sprzedaży
+CREATE TABLE p_sales_summary (
+  period_type  VARCHAR2(10) NOT NULL,
+  period_key   VARCHAR2(20) NOT NULL,
+  warehouse_id NUMBER,
+  category_id  NUMBER,
+  revenue      NUMBER(18,2),
+  qty_sold     NUMBER(18,3),
+  generated_at TIMESTAMP DEFAULT SYSTIMESTAMP,
+  CONSTRAINT pk_p_sales_summary PRIMARY KEY (period_type, period_key, warehouse_id, category_id)
+);
+
+--procedura dla podsumowania kwartalnego sprzedazy
+CREATE OR REPLACE PROCEDURE p_sales_summary_quarter(
+  p_rok     IN NUMBER,
+  p_kwartal IN NUMBER
+) IS
+  v_poczatek DATE;
+  v_koniec   DATE;
+  v_key      VARCHAR2(20);
+BEGIN
+  CASE p_kwartal
+    WHEN 1 THEN
+      v_poczatek := TO_DATE(p_rok || '-01-01', 'YYYY-MM-DD');
+      v_koniec   := TO_DATE(p_rok || '-03-31', 'YYYY-MM-DD');
+    WHEN 2 THEN
+      v_poczatek := TO_DATE(p_rok || '-04-01', 'YYYY-MM-DD');
+      v_koniec   := TO_DATE(p_rok || '-06-30', 'YYYY-MM-DD');
+    WHEN 3 THEN
+      v_poczatek := TO_DATE(p_rok || '-07-01', 'YYYY-MM-DD');
+      v_koniec   := TO_DATE(p_rok || '-09-30', 'YYYY-MM-DD');
+    WHEN 4 THEN
+      v_poczatek := TO_DATE(p_rok || '-10-01', 'YYYY-MM-DD');
+      v_koniec   := TO_DATE(p_rok || '-12-31', 'YYYY-MM-DD');
+    ELSE
+      RAISE_APPLICATION_ERROR(-20001, 'Kwartal musi byc w zakresie 1-4');
+  END CASE;
+
+  v_key := p_rok || '-Q' || p_kwartal;
+
+  DELETE FROM p_sales_summary
+  WHERE period_type = 'QUARTER'
+    AND period_key  = v_key;
+
+  INSERT INTO p_sales_summary(period_type, period_key, warehouse_id, category_id, revenue, qty_sold)
+  SELECT
+    'QUARTER' AS period_type,
+    v_key     AS period_key,
+    so.warehouse_id,
+    pr.category_id,
+    NVL(SUM(sl.qty * sl.unit_price), 0) AS revenue,
+    NVL(SUM(sl.qty), 0)                 AS qty_sold
+  FROM p_sales_orders so
+  JOIN p_sales_lines sl ON sl.so_id = so.so_id
+  JOIN p_products pr ON pr.product_id = sl.product_id
+  WHERE so.so_date BETWEEN v_poczatek AND v_koniec
+  GROUP BY so.warehouse_id, pr.category_id;
+
+    COMMIT;
+END;
+/
+--utworzenie widoku dla 3 najczesciej kupowanych produktow
+CREATE OR REPLACE VIEW v_top3_products_month AS
+SELECT *
+FROM (
+  SELECT
+    TO_CHAR(so.so_date, 'YYYY-MM') AS month_key,
+    so.warehouse_id,
+    sl.product_id,
+    SUM(sl.qty * sl.unit_price) AS revenue,
+    ROW_NUMBER() OVER (
+      PARTITION BY TO_CHAR(so.so_date, 'YYYY-MM'), so.warehouse_id
+      ORDER BY SUM(sl.qty * sl.unit_price) DESC
+    ) AS rn
+  FROM p_sales_orders so
+  JOIN p_sales_lines sl ON sl.so_id = so.so_id
+  GROUP BY TO_CHAR(so.so_date, 'YYYY-MM'), so.warehouse_id, sl.product_id
+)
+WHERE rn <= 3;
+

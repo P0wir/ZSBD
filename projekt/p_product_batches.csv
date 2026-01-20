@@ -1,0 +1,5 @@
+batch_id,product_id,supplier_id,warehouse_id,batch_code,received_date,expire_date,buy_price,qty_received
+1,1,1,1,BATCH-JAB-001,2026-01-10,2026-01-25,2.5,500
+2,2,1,1,BATCH-BAN-001,2026-01-12,2026-01-22,3.2,300
+3,3,2,2,BATCH-MAR-001,2026-01-15,2026-02-15,1.8,800
+4,4,2,2,BATCH-ZIE-001,2026-01-16,2026-03-01,1.2,1000

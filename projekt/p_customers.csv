@@ -1,0 +1,3 @@
+customer_id,name,nip,phone,email,active
+1,Sklep ABC,1234563218,700111222,abc@mail.com,Y
+2,Restauracja Roma,8567341290,700333444,roma@mail.com,Y
