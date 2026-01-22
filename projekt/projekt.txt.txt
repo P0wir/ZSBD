@@ -125,7 +125,7 @@ CREATE TABLE sales_lines_arch (
   deleted_by  VARCHAR2(128)
 );
 
--- trigger: przyjecie party + automatyczna aktualizacja stanu
+-- trigger: przyjecie party + automatyczna aktualizacja stanu, merge z p_stock
 CREATE OR REPLACE TRIGGER trg_p_batches_to_stock_ai
 AFTER INSERT ON p_product_batches
 FOR EACH ROW
@@ -344,4 +344,5 @@ FROM (
   GROUP BY TO_CHAR(so.so_date, 'YYYY-MM'), so.warehouse_id, sl.product_id
 )
 WHERE rn <= 3;
+
 
